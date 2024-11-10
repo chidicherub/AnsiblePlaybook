@@ -1,0 +1,48 @@
+---
+    - name: Ubuntu Apache Server 
+      hosts: ubuntuwebservers
+      remote_user: root
+    
+      tasks:
+        - name: update all packages to latest version
+          ansible.builtin.apt:
+            name: apache2
+            state: present
+    
+        - name: Install Apache in ubuntuwebservers
+          ansible.builtin.apt:
+            name: apache2
+            state: present
+    
+        - name: Ensure Apache is enabled on start # Apache reboots on start of server
+          systemd:
+            name: apache2
+            state: started
+            enabled: true
+
+        - name: Copy file from controller to targets
+          ansible.builtin.copy:
+            src: /etc/ansible/AnsiblePlaybook/GitApachePlaylist.yml
+            dest: /tmp/GitApachePlaylist.yml
+    
+    - name: this installs git on ubuntu clients
+      hosts: ubuntuwebservers
+      remote_user: root
+    
+      tasks:
+        - name: this Clone or update git repository
+          ansible.builtin.git:
+            repo: 'https://github.com/chidicherub/AnsiblePlaybook.git'  
+            dest: '/etc/ansible/AnsiblePlaybook'           # Path where the repository should be cloned or updated in controller
+            version: 'main'                                  # Branch or commit to checkout
+            force: yes                                       # Force update if there are changes
+            update: yes                                      # Pull the latest changes
+            state: present                                   # Ensure repository is present (cloned)
+     
+    - name: Debug my name
+      hosts: localhost  # Or any other target hosts
+           
+      tasks:
+        - name: Print Chidi and the user
+          ansible.builtin.debug:
+             msg: "{{ lookup('ansible.builtin.env', 'USR', default='nobody') }} is the user, and my name is Chidi."
