@@ -1,48 +1,75 @@
 ---
-    - name: Ubuntu Apache Server 
-      hosts: ubuntuwebservers
-      remote_user: root
-    
-      tasks:
-        - name: update all packages to latest version
-          ansible.builtin.apt:
-            name: apache2
-            state: present
-    
-        - name: Install Apache in ubuntuwebservers
-          ansible.builtin.apt:
-            name: apache2
-            state: present
-    
-        - name: Ensure Apache is enabled on start # Apache reboots on start of server
-          systemd:
-            name: apache2
-            state: started
-            enabled: true
+- name: Ubuntu Apache Server 
+  hosts: ubuntuwebservers
+  remote_user: root
 
-        - name: Copy file from controller to targets
-          ansible.builtin.copy:
-            src: /etc/ansible/AnsiblePlaybook/GitApachePlaylist.yml
-            dest: /tmp/GitApachePlaylist.yml
-    
-    - name: this installs git on ubuntu clients
-      hosts: ubuntuwebservers
-      remote_user: root
-    
-      tasks:
-        - name: this Clone or update git repository
-          ansible.builtin.git:
-            repo: 'https://github.com/chidicherub/AnsiblePlaybook.git'  
-            dest: '/etc/ansible/AnsiblePlaybook'           # Path where the repository should be cloned or updated in controller
-            version: 'main'                                  # Branch or commit to checkout
-            force: yes                                       # Force update if there are changes
-            update: yes                                      # Pull the latest changes
-            state: present                                   # Ensure repository is present (cloned)
-     
-    - name: Debug my name
-      hosts: localhost  # Or any other target hosts
-           
-      tasks:
-        - name: Print Chidi and the user
-          ansible.builtin.debug:
-             msg: "{{ lookup('ansible.builtin.env', 'USR', default='nobody') }} is the user, and my name is Chidi."
+  tasks:
+    - name: Ensure Apache is installed and up-to-date
+      ansible.builtin.apt:
+        name: apache2
+        state: present
+        update_cache: yes   # Ensure apt cache is updated before installation
+
+    - name: Ensure Apache is enabled on start and started
+      ansible.builtin.systemd:
+        name: apache2
+        state: started
+        enabled: true
+
+    - name: Check if Apache is running
+      ansible.builtin.systemd:
+        name: apache2
+        state: started
+      register: apache_status
+
+    - debug:
+        var: apache_status
+
+    - name: Create an HTML echo file
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html  # Destination on the web server
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Apache Echo Script</title>
+          </head>
+          <body>
+              <h1>Welcome to My Apache Page</h1>
+              <p>Greetings from Chidi through Ansible!</p>
+          </body>
+          </html>
+
+    - name: Copy GitPlaybook file from controller to target
+      ansible.builtin.copy:
+        src: /etc/ansible/AnsiblePlaybook/GitApachePlaylist.yml  # This should be on the local machine or controller
+        dest: /tmp/GitApachePlaylist.yml
+
+- name: Install and Update Git Repository
+  hosts: ubuntuwebservers
+  remote_user: root
+
+  tasks:
+    - name: Clone or update Git repository
+      ansible.builtin.git:
+        repo: 'https://github.com/chidicherub/AnsiblePlaybook.git'
+        dest: '/etc/ansible/AnsiblePlaybook'           # Path where the repository should be cloned or updated on the target
+        clone: yes                                      # Ensure repository is present (cloned)
+        version: 'main'                                 # Branch or commit to checkout
+        force: yes                                      # Force update if there are changes
+        update: yes                                     # Pull the latest changes
+
+    - name: List files in the repository directory
+      ansible.builtin.command:
+        cmd: ls /etc/ansible/AnsiblePlaybook   # This should point to the correct cloned directory
+      register: repo_files
+
+    - debug:
+        var: repo_files.stdout
+
+- name: Debug my name
+  hosts: localhost  # Or any other target hosts
+  tasks:
+    - name: Print Chidi and the user
+      ansible.builtin.debug:
+        msg: "{{ lookup('ansible.builtin.env', 'USR', default='Chidi') }} you gat this, You are almost there."
